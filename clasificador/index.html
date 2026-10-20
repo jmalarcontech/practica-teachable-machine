@@ -1,108 +1,382 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-app="clasificador">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Clasificador de imágenes: smartphone o cargador</title>
+  <meta name="description" content="Clasificador de imágenes entrenado con Teachable Machine que distingue un smartphone de un cargador. Funciona en el navegador con la cámara o con fotos.">
+  <meta name="author" content="Antonio Jesús Molina Alarcón">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#eceef1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111417" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="Clasificador de imágenes: smartphone o cargador">
+  <meta property="og:description" content="Modelo de Teachable Machine ejecutado en el navegador con TensorFlow.js.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c2127'/%3E%3Cpath d='M9 13V9h4M19 9h4v4M23 19v4h-4M13 23H9v-4' fill='none' stroke='%23fafbfc' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Aplica el tema guardado antes de pintar la página para evitar un destello
+    try {
+      const tema = JSON.parse(localStorage.getItem('clasificador.preferencias') || '{}').tema;
+      if (tema === 'claro' || tema === 'oscuro') document.documentElement.dataset.theme = tema === 'claro' ? 'light' : 'dark';
+    } catch (e) {}
+  </script>
 </head>
 <body>
-  <header class="cabecera">
-    <div>
-      <h1>Clasificador de imágenes</h1>
-      <p class="subtitulo">Distingue entre un smartphone y un cargador a partir de la cámara o de una foto.</p>
+  <a class="saltar" href="#mesa">Ir al clasificador</a>
+
+  <header class="barra">
+    <h1 class="barra-marca">
+      <svg class="marca" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M9 13V9h4M19 9h4v4M23 19v4h-4M13 23H9v-4" />
+      </svg>
+      <span class="barra-nombre">Clasificador</span>
+      <span class="barra-tema">Smartphone o cargador</span>
+    </h1>
+    <div class="barra-acciones">
+      <p id="estadoModelo" class="estado" data-estado="cargando" role="status">Cargando modelo</p>
+      <button id="btnModelo" class="boton-texto" type="button">Modelo</button>
+      <button id="btnAjustes" class="boton-texto" type="button">Ajustes</button>
     </div>
-    <p id="estadoModelo" class="estado" data-estado="cargando">Cargando modelo…</p>
   </header>
 
   <main>
-    <p id="aviso" class="aviso" hidden></p>
-
-    <section class="panel umbral">
-      <label for="umbral">Umbral de coincidencia</label>
-      <input id="umbral" type="range" min="50" max="99" step="1" value="80">
-      <output id="valorUmbral" for="umbral">80 %</output>
-      <p class="nota">Si la clase más probable no llega a este porcentaje, el resultado se considera no concluyente.</p>
-    </section>
-
-    <div class="columnas">
-      <section class="panel">
-        <div class="panel-cabecera">
-          <h2>Cámara</h2>
-          <select id="selectCamara" aria-label="Cámara">
-            <option value="user">Frontal</option>
-            <option value="environment">Trasera</option>
-          </select>
+    <section id="mesa" class="mesa" aria-label="Clasificador">
+      <div class="mesa-visor">
+        <div class="visor-cabecera">
+          <fieldset class="segmentado" id="selectorModo">
+            <legend class="solo-lectores">Origen de la imagen</legend>
+            <label><input type="radio" name="modo" value="camara" checked><span>Cámara</span></label>
+            <label><input type="radio" name="modo" value="imagen"><span>Imagen</span></label>
+          </fieldset>
+          <label class="interruptor">
+            <input id="interruptorAtencion" type="checkbox" role="switch" checked>
+            <span class="interruptor-pista" aria-hidden="true"></span>
+            <span>Mapa de atención</span>
+          </label>
         </div>
 
-        <div id="contenedorCamara" class="visor">
-          <span class="visor-vacio">Cámara apagada</span>
+        <div id="visor" class="visor" data-modo="camara" data-estado="cargando">
+          <video id="video" class="visor-video" playsinline muted aria-hidden="true"></video>
+          <img id="imagenVista" class="visor-imagen" alt="" hidden>
+          <div id="recorte" class="recorte">
+            <canvas id="mapa" class="mapa" width="64" height="64" aria-hidden="true"></canvas>
+            <span class="esquina" aria-hidden="true"></span>
+            <span class="esquina" aria-hidden="true"></span>
+            <span class="esquina" aria-hidden="true"></span>
+            <span class="esquina" aria-hidden="true"></span>
+          </div>
+          <p id="visorEtiqueta" class="visor-etiqueta" hidden></p>
+          <div id="leyenda" class="leyenda" hidden>
+            <span>Atención del modelo</span>
+            <span class="leyenda-rampa" aria-hidden="true"></span>
+          </div>
+          <div id="visorAviso" class="visor-aviso">
+            <div class="progreso" id="progreso" hidden><span></span></div>
+            <p class="visor-aviso-titulo">Cargando el modelo</p>
+            <p class="visor-aviso-texto"></p>
+            <button class="boton boton-claro" type="button" hidden></button>
+          </div>
         </div>
 
-        <div class="acciones">
-          <button id="btnIniciar" class="boton principal" disabled>Iniciar</button>
-          <button id="btnParar" class="boton" disabled>Detener</button>
+        <div class="controles">
+          <div class="acciones" data-para="camara">
+            <button id="btnIniciar" class="boton boton-principal" type="button" disabled>Iniciar cámara</button>
+            <button id="btnDetener" class="boton" type="button" disabled>Detener cámara</button>
+            <button id="btnRegistrar" class="boton boton-sutil" type="button" disabled>Registrar fotograma</button>
+            <label class="camara-rapida" id="camaraRapida" hidden>
+              <span class="solo-lectores">Cámara</span>
+              <select id="selCamaraRapida"></select>
+            </label>
+          </div>
+
+          <div class="acciones" data-para="imagen" hidden>
+            <button id="btnElegir" class="boton boton-principal" type="button" disabled>Elegir imágenes</button>
+            <p id="pistaPegar" class="pista">También puedes arrastrarlas o pegarlas con Ctrl+V.</p>
+            <input id="inputImagenes" type="file" accept="image/*" multiple hidden>
+          </div>
         </div>
 
-        <div id="resultadoCamara" class="resultado">
-          <p class="resultado-titulo">Sin resultados</p>
-          <p class="resultado-detalle">Pulsa Iniciar para activar la cámara.</p>
-          <div class="barras"></div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-cabecera">
-          <h2>Imagen</h2>
-        </div>
-
-        <label id="zonaSubida" class="visor visor-subida">
-          <input id="inputImagen" type="file" accept="image/*" disabled>
-          <img id="vistaPrevia" alt="Imagen seleccionada" hidden>
-          <span id="textoSubida" class="visor-vacio">Arrastra una imagen o haz clic para seleccionarla</span>
-        </label>
-
-        <div id="resultadoImagen" class="resultado">
-          <p class="resultado-titulo">Sin resultados</p>
-          <p class="resultado-detalle">Sube una foto para clasificarla.</p>
-          <div class="barras"></div>
-        </div>
-      </section>
-    </div>
-
-    <section class="panel">
-      <div class="panel-cabecera">
-        <h2>Histórico <span id="contadorHistorico" class="contador"></span></h2>
-        <div class="acciones-historico">
-          <button id="btnCsv" class="boton pequeno" disabled>Exportar CSV</button>
-          <button id="btnBorrar" class="boton pequeno" disabled>Vaciar</button>
+        <div id="lote" class="lote" hidden>
+          <p class="lote-titulo"><span id="loteResumen"></span></p>
+          <ol id="loteLista" class="lote-lista"></ol>
         </div>
       </div>
 
-      <div class="tabla-contenedor">
-        <table id="tablaHistorico" hidden>
+      <div class="mesa-lectura" id="lectura">
+        <div class="veredicto-caja">
+          <p id="veredicto" class="veredicto" data-tipo="estado">En espera</p>
+        </div>
+        <p id="mensaje" class="mensaje">Inicia la cámara o elige una imagen para ver el resultado.</p>
+        <p id="detalle" class="detalle" hidden></p>
+        <p class="confianza" id="confianzaCaja" hidden><span id="confianza" class="confianza-valor"></span> de confianza</p>
+
+        <div id="escala" class="escala" role="group" aria-label="Probabilidad de cada clase">
+          <div class="escala-fila escala-umbral">
+            <label for="umbral" class="escala-nombre">Umbral</label>
+            <div class="escala-pista umbral-pista">
+              <input id="umbral" type="range" min="50" max="99" step="1" value="80" aria-describedby="ayudaUmbral">
+            </div>
+            <output id="valorUmbral" for="umbral" class="escala-valor">80 %</output>
+          </div>
+          <p id="ayudaUmbral" class="escala-ayuda">Por debajo de este porcentaje, el resultado se considera no concluyente.</p>
+        </div>
+
+        <figure class="cronograma" id="cronograma">
+          <figcaption>Últimos 10 segundos</figcaption>
+          <div class="cronograma-lienzo">
+            <canvas id="grafica" role="img" aria-label="Evolución de la probabilidad de cada clase en los últimos 10 segundos"></canvas>
+            <div id="graficaTip" class="tip" hidden></div>
+          </div>
+        </figure>
+
+        <dl class="telemetria" aria-label="Rendimiento">
+          <div><dt>Motor</dt><dd id="telMotor">Sin iniciar</dd></div>
+          <div><dt>Inferencia</dt><dd id="telMs">Sin datos</dd></div>
+          <div id="telVelocidad"><dt>Velocidad</dt><dd id="telFps">Sin datos</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="historico" id="historico" aria-labelledby="tituloHistorico">
+      <div class="seccion-cabecera">
+        <div>
+          <h2 id="tituloHistorico">Histórico</h2>
+          <p id="contadorHistorico" class="seccion-sub">Sin registros</p>
+        </div>
+        <div class="seccion-acciones">
+          <button id="btnCsv" class="boton boton-sutil" type="button" disabled>Exportar CSV</button>
+          <button id="btnJson" class="boton boton-sutil" type="button" disabled>Exportar JSON</button>
+          <button id="btnVaciar" class="boton boton-sutil" type="button" disabled>Vaciar histórico</button>
+        </div>
+      </div>
+
+      <div id="resumenHistorico" class="resumen" hidden>
+        <div id="filtros" class="filtros" role="group" aria-label="Filtrar el histórico"></div>
+        <div class="distribucion-caja">
+          <div id="distribucion" class="distribucion" role="img"></div>
+          <p class="seccion-sub" id="confianzaMedia"></p>
+        </div>
+      </div>
+
+      <div class="tabla-caja" id="tablaCaja" hidden>
+        <table class="tabla">
+          <caption class="solo-lectores">Resultados registrados, del más reciente al más antiguo</caption>
           <thead>
             <tr>
-              <th aria-label="Miniatura"></th>
-              <th>Hora</th>
-              <th>Origen</th>
-              <th>Resultado</th>
-              <th>Confianza</th>
+              <th scope="col"><span class="solo-lectores">Imagen</span></th>
+              <th scope="col">Resultado</th>
+              <th scope="col" class="num">Confianza</th>
+              <th scope="col" class="col-origen">Origen</th>
+              <th scope="col" class="num">Fecha</th>
             </tr>
           </thead>
           <tbody id="cuerpoHistorico"></tbody>
         </table>
-        <p id="historicoVacio" class="vacio">Todavía no hay resultados. El histórico se guarda en este navegador.</p>
+      </div>
+      <p id="historicoVacio" class="vacio">Todavía no hay registros. Los resultados estables de la cámara y las imágenes que analices aparecerán aquí.</p>
+    </section>
+
+    <section class="como" aria-labelledby="tituloComo">
+      <h2 id="tituloComo">Cómo decide el modelo</h2>
+      <ol class="pasos">
+        <li>
+          <h3>Recorte</h3>
+          <p>Toma el cuadrado central de la imagen y lo reduce a <span data-dato="entrada">224 × 224</span> píxeles, igual que Teachable Machine al entrenar.</p>
+        </li>
+        <li>
+          <h3>Rasgos</h3>
+          <p>MobileNet, una red neuronal entrenada con millones de fotografías, resume la imagen en <span data-dato="rasgos">1280</span> rasgos visuales.</p>
+        </li>
+        <li>
+          <h3>Probabilidades</h3>
+          <p>Las capas que entrené en Teachable Machine convierten esos rasgos en una probabilidad para cada clase.</p>
+        </li>
+        <li>
+          <h3>Decisión</h3>
+          <p>Si la clase más probable supera el umbral, se muestra su mensaje. Si no, el resultado es no concluyente.</p>
+        </li>
+      </ol>
+      <div class="como-notas">
+        <p><strong>Mapa de atención.</strong> Usa la técnica Grad-CAM para medir cuánto influye cada zona de la imagen en la clase ganadora. Si el modelo está bien entrenado, la zona resaltada coincide con el objeto y no con el fondo.</p>
+        <p><strong>Equivalencia.</strong> El clasificador usa TensorFlow.js 4 en lugar de la librería oficial de Teachable Machine, con el mismo preprocesado. <a href="../comprobacion/">Compara los resultados con tus fotos</a>.</p>
+        <p><strong>Privacidad.</strong> Todo el cálculo ocurre en este navegador con TensorFlow.js. Ninguna imagen sale de tu dispositivo.</p>
       </div>
     </section>
   </main>
 
   <footer class="pie">
-    Antonio Jesús Molina Alarcón. Inteligencia Artificial, 2º DAM, IES Zaidín-Vergeles.
+    <p>Antonio Jesús Molina Alarcón</p>
+    <p>Inteligencia Artificial, 2º DAM, IES Zaidín-Vergeles</p>
+    <p><a href="https://github.com/jmalarcontech/practica-teachable-machine">Código fuente</a></p>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
-  <script src="app.js"></script>
+  <!-- Ajustes -->
+  <dialog id="dlgAjustes" class="dialogo" aria-labelledby="tituloAjustes">
+    <form method="dialog" class="dialogo-cuerpo">
+      <header class="dialogo-cabecera">
+        <h2 id="tituloAjustes">Ajustes</h2>
+        <button class="cerrar" value="cerrar" aria-label="Cerrar"></button>
+      </header>
+
+      <section class="grupo">
+        <h3>Detección</h3>
+        <label class="opcion">
+          <span class="opcion-texto"><span>Suavizar resultados</span><small>Promedia los últimos fotogramas para que el resultado no parpadee.</small></span>
+          <span class="interruptor"><input type="checkbox" role="switch" data-pref="suavizado"><span class="interruptor-pista" aria-hidden="true"></span></span>
+        </label>
+        <label class="opcion">
+          <span class="opcion-texto"><span>Mapa de atención</span><small>Resalta las zonas de la imagen que más influyen en la decisión.</small></span>
+          <span class="interruptor"><input type="checkbox" role="switch" data-pref="atencion"><span class="interruptor-pista" aria-hidden="true"></span></span>
+        </label>
+        <label class="opcion">
+          <span class="opcion-texto"><span>Registrar automáticamente</span><small>Guarda en el histórico cada resultado de la cámara que se mantiene estable.</small></span>
+          <span class="interruptor"><input type="checkbox" role="switch" data-pref="registroAuto"><span class="interruptor-pista" aria-hidden="true"></span></span>
+        </label>
+        <label class="opcion opcion-rango">
+          <span class="opcion-texto"><span>Tiempo de estabilidad</span><small>Cuánto tiempo debe mantenerse un resultado para registrarlo.</small></span>
+          <span class="rango"><input type="range" min="300" max="3000" step="100" data-pref="estabilidad"><output data-salida="estabilidad"></output></span>
+        </label>
+      </section>
+
+      <section class="grupo">
+        <h3>Mensajes</h3>
+        <p class="grupo-ayuda">Texto que aparece bajo el resultado para cada clase.</p>
+        <div id="listaMensajes" class="lista-mensajes"></div>
+        <button type="button" class="boton boton-sutil" id="btnRestablecerMensajes">Restablecer mensajes</button>
+      </section>
+
+      <section class="grupo">
+        <h3>Cámara</h3>
+        <label class="opcion opcion-bloque">
+          <span class="opcion-texto"><span>Dispositivo</span><small id="ayudaDispositivo">Inicia la cámara una vez para ver todas las disponibles.</small></span>
+          <select id="selCamara" data-pref="camara"><option value="">Predeterminada</option></select>
+        </label>
+        <label class="opcion">
+          <span class="opcion-texto"><span>Efecto espejo</span><small>Invierte la imagen de la cámara frontal, como un espejo.</small></span>
+          <span class="interruptor"><input type="checkbox" role="switch" data-pref="espejo"><span class="interruptor-pista" aria-hidden="true"></span></span>
+        </label>
+      </section>
+
+      <section class="grupo">
+        <h3>Rendimiento</h3>
+        <label class="opcion opcion-bloque">
+          <span class="opcion-texto"><span>Motor de cálculo</span><small id="ayudaMotor">El automático prueba la tarjeta gráfica y, si no está disponible, WebAssembly.</small></span>
+          <select id="selMotor" data-pref="motor">
+            <option value="auto">Automático</option>
+            <option value="webgl">WebGL (tarjeta gráfica)</option>
+            <option value="webgpu">WebGPU (experimental)</option>
+            <option value="wasm">WebAssembly</option>
+            <option value="cpu">CPU</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="grupo">
+        <h3>Apariencia</h3>
+        <fieldset class="segmentado segmentado-pequeno" id="selectorTema">
+          <legend class="solo-lectores">Tema</legend>
+          <label><input type="radio" name="tema" value="auto"><span>Automático</span></label>
+          <label><input type="radio" name="tema" value="claro"><span>Claro</span></label>
+          <label><input type="radio" name="tema" value="oscuro"><span>Oscuro</span></label>
+        </fieldset>
+      </section>
+
+      <section class="grupo">
+        <h3>Atajos de teclado</h3>
+        <dl class="atajos">
+          <div><dt><kbd>Espacio</kbd></dt><dd>Iniciar o detener la cámara</dd></div>
+          <div><dt><kbd>R</kbd></dt><dd>Registrar fotograma</dd></div>
+          <div><dt><kbd>A</kbd></dt><dd>Mostrar u ocultar el mapa de atención</dd></div>
+          <div><dt><kbd>C</kbd> <kbd>I</kbd></dt><dd>Cambiar a cámara o a imagen</dd></div>
+          <div><dt><kbd>O</kbd></dt><dd>Elegir imágenes</dd></div>
+        </dl>
+      </section>
+
+      <footer class="dialogo-pie">
+        <button type="button" class="boton boton-sutil" id="btnRestablecerAjustes">Restablecer ajustes</button>
+        <button class="boton boton-principal" value="cerrar">Listo</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Ficha del modelo -->
+  <dialog id="dlgModelo" class="dialogo" aria-labelledby="tituloModelo">
+    <form method="dialog" class="dialogo-cuerpo">
+      <header class="dialogo-cabecera">
+        <h2 id="tituloModelo">Modelo</h2>
+        <button class="cerrar" value="cerrar" aria-label="Cerrar"></button>
+      </header>
+      <dl id="fichaModelo" class="ficha"></dl>
+      <section class="grupo">
+        <h3>Usar otro modelo</h3>
+        <p class="grupo-ayuda">Selecciona el archivo .zip que descarga Teachable Machine, o los tres archivos que contiene: model.json, metadata.json y weights.bin. También puedes soltarlos sobre la página.</p>
+        <div class="fila-botones">
+          <button type="button" class="boton" id="btnCargarModelo">Cargar archivos del modelo</button>
+          <button type="button" class="boton boton-sutil" id="btnModeloProyecto" hidden>Volver al modelo del proyecto</button>
+        </div>
+        <input id="inputModelo" type="file" accept=".zip,.json,.bin,application/zip,application/json" multiple hidden>
+      </section>
+      <section class="grupo">
+        <h3>Comprobar equivalencia</h3>
+        <p class="grupo-ayuda">Clasifica las mismas fotos con la librería oficial de Teachable Machine y con esta aplicación, y compara las probabilidades.</p>
+        <div class="fila-botones">
+          <a class="boton boton-sutil" href="../comprobacion/">Abrir la comprobación</a>
+        </div>
+      </section>
+    </form>
+  </dialog>
+
+  <!-- Detalle de un registro -->
+  <dialog id="dlgDetalle" class="dialogo dialogo-detalle" aria-labelledby="tituloDetalle">
+    <form method="dialog" class="dialogo-cuerpo">
+      <header class="dialogo-cabecera">
+        <h2 id="tituloDetalle">Registro</h2>
+        <button class="cerrar" value="cerrar" aria-label="Cerrar"></button>
+      </header>
+      <div class="detalle-rejilla">
+        <div class="detalle-imagen">
+          <img id="detalleImagen" alt="">
+          <canvas id="detalleMapa" class="mapa" width="64" height="64" aria-hidden="true"></canvas>
+        </div>
+        <div class="detalle-datos">
+          <p id="detalleMensaje" class="mensaje"></p>
+          <dl id="detalleFicha" class="ficha ficha-compacta"></dl>
+          <div id="detalleEscala" class="escala escala-estatica"></div>
+          <label class="interruptor" id="detalleInterruptor">
+            <input id="detalleAtencion" type="checkbox" role="switch" checked>
+            <span class="interruptor-pista" aria-hidden="true"></span>
+            <span>Mapa de atención</span>
+          </label>
+        </div>
+      </div>
+      <footer class="dialogo-pie">
+        <button type="button" class="boton boton-sutil" id="btnEliminarRegistro">Eliminar registro</button>
+        <button class="boton boton-principal" value="cerrar">Cerrar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Confirmación -->
+  <dialog id="dlgConfirmar" class="dialogo dialogo-pequeno" aria-labelledby="tituloConfirmar">
+    <form method="dialog" class="dialogo-cuerpo">
+      <h2 id="tituloConfirmar"></h2>
+      <p id="textoConfirmar" class="grupo-ayuda"></p>
+      <footer class="dialogo-pie">
+        <button class="boton boton-sutil" value="no">Cancelar</button>
+        <button class="boton boton-peligro" value="si" id="btnConfirmar"></button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="soltar" class="soltar" hidden><p>Suelta los archivos para analizarlos</p></div>
+  <div id="avisos" class="avisos" role="status" aria-live="polite"></div>
+  <p id="anuncio" class="solo-lectores" aria-live="polite"></p>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script defer src="app.js"></script>
 </body>
 </html>

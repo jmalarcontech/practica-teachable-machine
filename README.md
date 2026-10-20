@@ -1,31 +1,39 @@
 # Clasificador de imágenes con Teachable Machine
 
-Práctica de Inteligencia Artificial (2º DAM, IES Zaidín-Vergeles). Modelo de clasificación de imágenes entrenado con [Teachable Machine](https://teachablemachine.withgoogle.com/) que distingue entre un smartphone y un cargador. Se ha exportado a TensorFlow.js y se ejecuta en el navegador desde una página web propia.
+Práctica de Inteligencia Artificial (2º DAM, IES Zaidín-Vergeles). Un modelo entrenado con [Teachable Machine](https://teachablemachine.withgoogle.com/) distingue entre un smartphone y un cargador, y una aplicación web lo ejecuta en el navegador con la cámara o con fotos.
 
-Página publicada: https://jmalarcontech.github.io/practica-teachable-machine/clasificador/
+**Aplicación:** https://jmalarcontech.github.io/practica-teachable-machine/clasificador/
 
-## Clases
+## Qué hace
 
-- Smartphone
-- Cargador
-- Fondo (la escena sin ningún objeto)
+Las siete mejoras del enunciado:
 
-## Funcionalidades
+- Diseño propio, con tema claro y oscuro.
+- Diseño adaptable a móvil, tableta y escritorio.
+- Botones para iniciar y detener la cámara.
+- Mensaje personalizado para cada clase, editable desde los ajustes.
+- Umbral mínimo de coincidencia, con la misma escala que las barras de probabilidad.
+- Histórico de resultados guardado en el navegador, con filtros y exportación a CSV y JSON.
+- Clasificación de imágenes subidas, arrastradas o pegadas, también varias a la vez.
 
-- Clasificación en directo con la cámara frontal o trasera, con botones de inicio y parada.
-- Mensaje personalizado para cada clase.
-- Umbral mínimo de coincidencia ajustable.
-- Histórico de resultados guardado en el navegador y exportable a CSV.
-- Clasificación de imágenes subidas o arrastradas a la página.
-- Diseño propio, adaptado a móvil y con modo oscuro.
+Y además:
+
+- **Mapa de atención (Grad-CAM):** resalta la zona de la imagen en la que se ha fijado el modelo.
+- **TensorFlow.js 4.22** en lugar de la librería de Teachable Machine (TensorFlow.js 1.3.1), con el mismo preprocesado. La página `comprobacion/` demuestra que los resultados coinciden.
+- **Elección automática del motor de cálculo:** WebGL, WebAssembly o CPU, con WebGPU opcional.
+- Cronograma de los últimos 10 segundos, ficha del modelo y datos de rendimiento.
+- Carga directa del `.zip` que descarga Teachable Machine.
+- Atajos de teclado y compatibilidad con lectores de pantalla.
+
+Todo el cálculo ocurre en el navegador: ninguna imagen sale del dispositivo.
 
 ## Estructura
 
 ```
 practica-teachable-machine/
-├── README.md
+├── index.html           Redirige al clasificador
 ├── memoria.ipynb        Memoria de la práctica (Google Colab)
-├── clasificador/        Página con las mejoras
+├── clasificador/        Aplicación
 │   ├── index.html
 │   ├── styles.css
 │   ├── app.js
@@ -33,13 +41,13 @@ practica-teachable-machine/
 │       ├── model.json
 │       ├── metadata.json
 │       └── weights.bin
+├── comprobacion/        Compara los resultados con la librería oficial
 └── version-base/        Código original generado por Teachable Machine
-    └── index.html
 ```
 
 ## Ejecución en local
 
-El modelo no se carga si se abre `index.html` con doble clic. Hay que usar un servidor local desde la carpeta del proyecto:
+El navegador no deja cargar el modelo si `index.html` se abre con doble clic. Hay que usar un servidor local desde la carpeta del proyecto:
 
 ```bash
 python3 -m http.server 8000
@@ -47,9 +55,13 @@ python3 -m http.server 8000
 
 y abrir http://localhost:8000/clasificador/
 
+## Usar otro modelo
+
+Exporta el modelo en Teachable Machine con la opción TensorFlow.js y copia `model.json`, `metadata.json` y `weights.bin` en `clasificador/modelo/`. Para probarlo sin copiarlo, abre la ficha del modelo (botón *Modelo*) y carga el `.zip` descargado.
+
 ## Tecnologías
 
-HTML, CSS y JavaScript, con [TensorFlow.js](https://www.tensorflow.org/js) 1.3.1 y la librería [@teachablemachine/image](https://www.npmjs.com/package/@teachablemachine/image) 0.8.5.
+HTML, CSS y JavaScript sin dependencias aparte de [TensorFlow.js](https://www.tensorflow.org/js) 4.22. La tipografía es [Archivo](https://fonts.google.com/specimen/Archivo).
 
 ## Autor
 

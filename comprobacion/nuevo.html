@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Implementación propia</title>
+</head>
+<body>
+  <!-- Clasifica con el mismo código que usa el clasificador (app.js) y TensorFlow.js 4 -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="../clasificador/app.js"></script>
+  <script>
+    const avisar = (datos) => parent.postMessage({ origen: 'nuevo', ...datos }, '*');
+    let clasificador = null;
+
+    (async () => {
+      try {
+        tf.enableProdMode();
+        const { artefactos, metadatos } = await leerModeloDelProyecto();
+        const resultado = await construirClasificador(artefactos, metadatos, 'auto');
+        clasificador = resultado.clasificador;
+        avisar({ tipo: 'listo', etiquetas: clasificador.etiquetas, motor: tf.getBackend(), version: tf.version.tfjs });
+      } catch (error) {
+        avisar({ tipo: 'error', mensaje: String(error && error.message ? error.message : error) });
+      }
+    })();
+
+    addEventListener('message', async (evento) => {
+      if (!clasificador || !evento.data || evento.data.tipo !== 'analizar') return;
+      const url = URL.createObjectURL(evento.data.archivo);
+      try {
+        const imagen = new Image();
+        imagen.src = url;
+        await imagen.decode();
+        const r = await clasificador.analizar(imagen);
+        avisar({ tipo: 'resultado', id: evento.data.id, probabilidades: Array.from(r.probabilidades) });
+      } catch (error) {
+        avisar({ tipo: 'resultado', id: evento.data.id, error: String(error) });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    });
+  </script>
+</body>
+</html>

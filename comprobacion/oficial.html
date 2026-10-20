@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Librería oficial de Teachable Machine</title>
+</head>
+<body>
+  <!-- Clasifica con la librería oficial de Teachable Machine, la misma que usa version-base -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+  <script>
+    const RUTA = '../clasificador/modelo/';
+    const avisar = (datos) => parent.postMessage({ origen: 'oficial', ...datos }, '*');
+    let modelo = null;
+
+    tmImage
+      .load(RUTA + 'model.json', RUTA + 'metadata.json')
+      .then((m) => {
+        modelo = m;
+        avisar({ tipo: 'listo', etiquetas: m.getClassLabels(), motor: tf.getBackend(), version: tf.version.tfjs });
+      })
+      .catch((error) => avisar({ tipo: 'error', mensaje: String(error && error.message ? error.message : error) }));
+
+    addEventListener('message', async (evento) => {
+      if (!modelo || !evento.data || evento.data.tipo !== 'analizar') return;
+      const url = URL.createObjectURL(evento.data.archivo);
+      try {
+        const imagen = new Image();
+        imagen.src = url;
+        await imagen.decode();
+        const prediccion = await modelo.predict(imagen);
+        avisar({ tipo: 'resultado', id: evento.data.id, probabilidades: prediccion.map((p) => p.probability) });
+      } catch (error) {
+        avisar({ tipo: 'resultado', id: evento.data.id, error: String(error) });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    });
+  </script>
+</body>
+</html>

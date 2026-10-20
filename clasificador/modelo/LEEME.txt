@@ -1,6 +1,8 @@
-Pon aquí los 3 archivos del zip de Teachable Machine (TensorFlow.js):
+Copia aquí los tres archivos que contiene el .zip de Teachable Machine
+(Export Model, pestaña Tensorflow.js, Download my model):
+
   model.json
   metadata.json
   weights.bin
 
-Borra este archivo cuando los tengas.
+Después borra este archivo.

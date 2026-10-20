@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comprobación de equivalencia</title>
+  <meta name="description" content="Compara las probabilidades de la librería oficial de Teachable Machine con las del clasificador para las mismas imágenes.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c2127'/%3E%3Cpath d='M9 13V9h4M19 9h4v4M23 19v4h-4M13 23H9v-4' fill='none' stroke='%23fafbfc' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap">
+  <link rel="stylesheet" href="../clasificador/styles.css">
+  <script>
+    try {
+      const tema = JSON.parse(localStorage.getItem('clasificador.preferencias') || '{}').tema;
+      if (tema === 'claro' || tema === 'oscuro') document.documentElement.dataset.theme = tema === 'claro' ? 'light' : 'dark';
+    } catch (e) {}
+  </script>
+  <style>
+    .comprobacion {
+      display: grid;
+      gap: 32px;
+      padding: clamp(24px, 4vw, 48px) 0 64px;
+    }
+
+    .comprobacion-intro {
+      display: grid;
+      gap: 12px;
+    }
+
+    .comprobacion-intro h2 {
+      max-width: 24ch;
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-stretch: 118%;
+      letter-spacing: -0.015em;
+      line-height: 1.1;
+    }
+
+    .comprobacion-intro p {
+      max-width: 62ch;
+      color: var(--tinta-2);
+      font-size: 1.0625rem;
+    }
+
+    .versiones {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .version {
+      display: grid;
+      gap: 4px;
+      padding: 20px;
+      border: 1px solid var(--linea);
+      border-radius: var(--radio-superficie);
+      background: var(--superficie);
+    }
+
+    .version p {
+      color: var(--niebla);
+      font-size: 0.9375rem;
+    }
+
+    .version .estado {
+      margin: 8px 0 0;
+    }
+
+    .veredicto-comprobacion {
+      display: grid;
+      gap: 6px;
+    }
+
+    .veredicto-comprobacion .veredicto {
+      font-size: clamp(2.25rem, 6vw, 3.75rem);
+      white-space: normal;
+    }
+
+    .veredicto-comprobacion p:not(.veredicto) {
+      color: var(--tinta-2);
+      font-size: 1.0625rem;
+    }
+
+    .resultados {
+      display: grid;
+      gap: 8px;
+    }
+
+    .resultados .tabla-caja {
+      max-height: none;
+    }
+
+    .tabla td .clase {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tabla td .distinta {
+      color: var(--peligro);
+      font-weight: 620;
+    }
+  </style>
+</head>
+<body>
+  <header class="barra">
+    <h1 class="barra-marca">
+      <svg class="marca" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M9 13V9h4M19 9h4v4M23 19v4h-4M13 23H9v-4" />
+      </svg>
+      <span class="barra-nombre">Clasificador</span>
+      <span class="barra-tema">Comprobación de equivalencia</span>
+    </h1>
+    <div class="barra-acciones">
+      <a class="boton-texto" href="../clasificador/">Volver al clasificador</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="comprobacion">
+      <section class="comprobacion-intro">
+        <h2>¿Da los mismos resultados que Teachable Machine?</h2>
+        <p>El clasificador no usa la librería oficial de Teachable Machine, sino TensorFlow.js 4 con el mismo preprocesado. Esta página clasifica las mismas imágenes con las dos versiones y compara las probabilidades.</p>
+      </section>
+
+      <section class="versiones" aria-label="Versiones que se comparan">
+        <div class="version">
+          <h3>Librería oficial</h3>
+          <p id="infoOficial">@teachablemachine/image 0.8.5 con TensorFlow.js 1.3.1</p>
+          <p class="estado" id="estadoOficial" data-estado="cargando">Cargando el modelo</p>
+        </div>
+        <div class="version">
+          <h3>Esta aplicación</h3>
+          <p id="infoNuevo">app.js con TensorFlow.js 4.22.0</p>
+          <p class="estado" id="estadoNuevo" data-estado="cargando">Cargando el modelo</p>
+        </div>
+      </section>
+
+      <div class="acciones">
+        <button id="btnElegir" class="boton boton-principal" type="button" disabled>Elegir imágenes</button>
+        <p class="pista">Elige varias fotos de cada clase. También puedes soltarlas sobre la página.</p>
+        <input id="inputImagenes" type="file" accept="image/*" multiple hidden>
+      </div>
+
+      <section class="historico resultados" id="resultados" hidden aria-label="Resultados">
+      <div class="veredicto-comprobacion" id="resumen" aria-live="polite">
+        <p id="veredictoComprobacion" class="veredicto" data-tipo="clase"></p>
+        <p id="textoComprobacion"></p>
+      </div>
+
+      <div class="tabla-caja" id="tablaCaja">
+        <table class="tabla">
+          <caption class="solo-lectores">Resultados de las dos versiones para cada imagen</caption>
+          <thead>
+            <tr>
+              <th scope="col"><span class="solo-lectores">Imagen</span></th>
+              <th scope="col">Archivo</th>
+              <th scope="col">Librería oficial</th>
+              <th scope="col">Esta aplicación</th>
+              <th scope="col" class="num">Diferencia máxima</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpo"></tbody>
+        </table>
+      </div>
+
+      <p class="pista" id="nota">La diferencia máxima es la mayor distancia entre las probabilidades de una misma clase. Valores minúsculos, como 10⁻⁷, se deben a la precisión numérica de cada motor de cálculo, no al preprocesado.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <p>Antonio Jesús Molina Alarcón</p>
+    <p>Inteligencia Artificial, 2º DAM, IES Zaidín-Vergeles</p>
+  </footer>
+
+  <iframe id="marcoOficial" src="oficial.html" title="Librería oficial" hidden></iframe>
+  <iframe id="marcoNuevo" src="nuevo.html" title="Esta aplicación" hidden></iframe>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const marcos = { oficial: $('marcoOficial'), nuevo: $('marcoNuevo') };
+    const listo = { oficial: null, nuevo: null };
+    const imagenes = new Map();
+    let siguienteId = 1;
+    const MOTORES = { webgl: 'WebGL', wasm: 'WebAssembly', cpu: 'CPU', webgpu: 'WebGPU' };
+    const porcentaje = (p) => `${(p * 100).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+
+    function cientifico(x) {
+      if (x === 0) return '0';
+      if (x >= 0.001) return x.toLocaleString('es-ES', { maximumFractionDigits: 4 });
+      const exponente = Math.floor(Math.log10(x));
+      const mantisa = x / 10 ** exponente;
+      const sup = String(exponente).replace(/[-0-9]/g, (c) => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+      return `${mantisa.toLocaleString('es-ES', { maximumFractionDigits: 1 })} × 10${sup}`;
+    }
+
+    function ganadora(probabilidades) {
+      let i = 0;
+      probabilidades.forEach((p, j) => { if (p > probabilidades[i]) i = j; });
+      return i;
+    }
+
+    addEventListener('message', (evento) => {
+      const d = evento.data;
+      if (!d || !marcos[d.origen]) return;
+      const estado = $(d.origen === 'oficial' ? 'estadoOficial' : 'estadoNuevo');
+      if (d.tipo === 'listo') {
+        listo[d.origen] = d;
+        estado.dataset.estado = 'listo';
+        estado.textContent = `Listo, motor ${MOTORES[d.motor] || d.motor}`;
+        $(d.origen === 'oficial' ? 'infoOficial' : 'infoNuevo').textContent =
+          d.origen === 'oficial' ? `@teachablemachine/image 0.8.5 con TensorFlow.js ${d.version}` : `app.js con TensorFlow.js ${d.version}`;
+        $('btnElegir').disabled = !(listo.oficial && listo.nuevo);
+      } else if (d.tipo === 'error') {
+        estado.dataset.estado = 'error';
+        estado.textContent = 'No se ha podido cargar el modelo de la carpeta clasificador/modelo';
+      } else if (d.tipo === 'resultado') {
+        const imagen = imagenes.get(d.id);
+        if (!imagen) return;
+        imagen[d.origen] = d;
+        if (imagen.oficial && imagen.nuevo) pintar();
+      }
+    });
+
+    function analizar(lista) {
+      const archivos = [...lista].filter((a) => a.type.startsWith('image/'));
+      if (!archivos.length || !(listo.oficial && listo.nuevo)) return;
+      for (const archivo of archivos) {
+        const id = siguienteId++;
+        imagenes.set(id, { nombre: archivo.name, miniatura: URL.createObjectURL(archivo), oficial: null, nuevo: null });
+        for (const marco of Object.values(marcos)) marco.contentWindow.postMessage({ tipo: 'analizar', id, archivo }, '*');
+      }
+    }
+
+    function pintar() {
+      const etiquetas = listo.nuevo.etiquetas;
+      const completas = [...imagenes.values()].filter((i) => i.oficial && i.nuevo && !i.oficial.error && !i.nuevo.error);
+      let maxima = 0;
+      let distintas = 0;
+      const filas = completas.map((imagen) => {
+        const a = imagen.oficial.probabilidades;
+        const b = imagen.nuevo.probabilidades;
+        const diferencia = Math.max(...a.map((p, i) => Math.abs(p - b[i])));
+        maxima = Math.max(maxima, diferencia);
+        const ga = ganadora(a);
+        const gb = ganadora(b);
+        if (ga !== gb) distintas += 1;
+
+        const fila = document.createElement('tr');
+        const celda = (contenido, clase) => {
+          const td = document.createElement('td');
+          if (clase) td.className = clase;
+          if (typeof contenido === 'string') td.textContent = contenido;
+          else td.append(contenido);
+          return td;
+        };
+        const img = document.createElement('img');
+        img.src = imagen.miniatura;
+        img.alt = '';
+        const resultado = (i, p, distinta) => {
+          const span = document.createElement('span');
+          span.className = 'clase' + (distinta ? ' distinta' : '');
+          span.textContent = `${etiquetas[i]} ${porcentaje(p)}`;
+          return span;
+        };
+        fila.append(
+          celda(img),
+          celda(imagen.nombre, 'col-origen'),
+          celda(resultado(ga, a[ga], ga !== gb)),
+          celda(resultado(gb, b[gb], ga !== gb)),
+          celda(cientifico(diferencia), 'num')
+        );
+        return fila;
+      });
+      $('cuerpo').replaceChildren(...filas);
+      $('resultados').hidden = filas.length === 0;
+      $('veredictoComprobacion').textContent = distintas === 0 ? 'Resultados equivalentes' : 'Hay diferencias';
+      $('textoComprobacion').textContent =
+        `La clase ganadora coincide en ${completas.length - distintas} de ${completas.length} ${completas.length === 1 ? 'imagen' : 'imágenes'}. ` +
+        `La mayor diferencia entre probabilidades es ${cientifico(maxima)}.`;
+    }
+
+    $('btnElegir').addEventListener('click', () => $('inputImagenes').click());
+    $('inputImagenes').addEventListener('change', () => {
+      analizar($('inputImagenes').files);
+      $('inputImagenes').value = '';
+    });
+    addEventListener('dragover', (e) => e.preventDefault());
+    addEventListener('drop', (e) => {
+      e.preventDefault();
+      analizar(e.dataTransfer.files);
+    });
+  </script>
+</body>
+</html>
