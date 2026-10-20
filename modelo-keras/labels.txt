@@ -1,0 +1,3 @@
+0 Smartphone
+1 Cargador
+2 Fondo

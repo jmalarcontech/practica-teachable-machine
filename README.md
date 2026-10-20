@@ -41,6 +41,10 @@ practica-teachable-machine/
 │       ├── model.json
 │       ├── metadata.json
 │       └── weights.bin
+├── modelo-keras/        Modelo exportado a TensorFlow (Keras)
+│   ├── keras_model.h5
+│   ├── labels.txt
+│   └── converted_keras.zip
 ├── comprobacion/        Compara los resultados con la librería oficial
 └── version-base/        Código original generado por Teachable Machine
 ```
