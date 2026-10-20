@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clasificador de imágenes: smartphone o cargador</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="cabecera">
+    <div>
+      <h1>Clasificador de imágenes</h1>
+      <p class="subtitulo">Distingue entre un smartphone y un cargador a partir de la cámara o de una foto.</p>
+    </div>
+    <p id="estadoModelo" class="estado" data-estado="cargando">Cargando modelo…</p>
+  </header>
+
+  <main>
+    <p id="aviso" class="aviso" hidden></p>
+
+    <section class="panel umbral">
+      <label for="umbral">Umbral de coincidencia</label>
+      <input id="umbral" type="range" min="50" max="99" step="1" value="80">
+      <output id="valorUmbral" for="umbral">80 %</output>
+      <p class="nota">Si la clase más probable no llega a este porcentaje, el resultado se considera no concluyente.</p>
+    </section>
+
+    <div class="columnas">
+      <section class="panel">
+        <div class="panel-cabecera">
+          <h2>Cámara</h2>
+          <select id="selectCamara" aria-label="Cámara">
+            <option value="user">Frontal</option>
+            <option value="environment">Trasera</option>
+          </select>
+        </div>
+
+        <div id="contenedorCamara" class="visor">
+          <span class="visor-vacio">Cámara apagada</span>
+        </div>
+
+        <div class="acciones">
+          <button id="btnIniciar" class="boton principal" disabled>Iniciar</button>
+          <button id="btnParar" class="boton" disabled>Detener</button>
+        </div>
+
+        <div id="resultadoCamara" class="resultado">
+          <p class="resultado-titulo">Sin resultados</p>
+          <p class="resultado-detalle">Pulsa Iniciar para activar la cámara.</p>
+          <div class="barras"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-cabecera">
+          <h2>Imagen</h2>
+        </div>
+
+        <label id="zonaSubida" class="visor visor-subida">
+          <input id="inputImagen" type="file" accept="image/*" disabled>
+          <img id="vistaPrevia" alt="Imagen seleccionada" hidden>
+          <span id="textoSubida" class="visor-vacio">Arrastra una imagen o haz clic para seleccionarla</span>
+        </label>
+
+        <div id="resultadoImagen" class="resultado">
+          <p class="resultado-titulo">Sin resultados</p>
+          <p class="resultado-detalle">Sube una foto para clasificarla.</p>
+          <div class="barras"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-cabecera">
+        <h2>Histórico <span id="contadorHistorico" class="contador"></span></h2>
+        <div class="acciones-historico">
+          <button id="btnCsv" class="boton pequeno" disabled>Exportar CSV</button>
+          <button id="btnBorrar" class="boton pequeno" disabled>Vaciar</button>
+        </div>
+      </div>
+
+      <div class="tabla-contenedor">
+        <table id="tablaHistorico" hidden>
+          <thead>
+            <tr>
+              <th aria-label="Miniatura"></th>
+              <th>Hora</th>
+              <th>Origen</th>
+              <th>Resultado</th>
+              <th>Confianza</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoHistorico"></tbody>
+        </table>
+        <p id="historicoVacio" class="vacio">Todavía no hay resultados. El histórico se guarda en este navegador.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    Antonio Jesús Molina Alarcón. Inteligencia Artificial, 2º DAM, IES Zaidín-Vergeles.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

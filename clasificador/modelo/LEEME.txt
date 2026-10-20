@@ -1,0 +1,6 @@
+Pon aquí los 3 archivos del zip de Teachable Machine (TensorFlow.js):
+  model.json
+  metadata.json
+  weights.bin
+
+Borra este archivo cuando los tengas.
