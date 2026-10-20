@@ -2,7 +2,7 @@
 
 Práctica de Inteligencia Artificial (2º DAM, IES Zaidín-Vergeles). Modelo de clasificación de imágenes entrenado con [Teachable Machine](https://teachablemachine.withgoogle.com/) que distingue entre un smartphone y un cargador. Se ha exportado a TensorFlow.js y se ejecuta en el navegador desde una página web propia.
 
-Página publicada: https://USUARIO.github.io/practica-teachable-machine/clasificador/
+Página publicada: https://jmalarcontech.github.io/practica-teachable-machine/clasificador/
 
 ## Clases
 
